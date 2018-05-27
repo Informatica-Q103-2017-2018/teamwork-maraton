@@ -1,0 +1,355 @@
+/*Programa que registra los tiempos de 10 correrores en una marat�n, CUYOS DORSALES VAN DEL 1 AL 10.
+El men� principal del programa proporciona las siguientes opciones:
+
+1.	Registrar tiempo de un corredor
+2.	Lista de resultados
+3.	Clasificaci�n de la carrera
+4.	Tiempo medio
+
+La opci�n 1 debe registrar el tiempo de un corredor en horas minutos y segundos, indicando su dorsal.
+La opci�n 2 muestra la lista de datos registrados: dorsal del corredor y el tiempo  registrado.
+La opci�n 3 muestra la clasificaci�n de la marat�n de mejor a peor tiempo.
+La opci�n 4 indica la media de tiempos de todos los corredores que han terminado la marat�n.
+
+NOTA:
+-No todos los corredores tienen por qu� terminar la marat�n.
+-El men� principal y cada una de las opciones se realizar�n mediante funciones separadas.
+-El c�digo debe ser f�cilmente adaptable a una marat�n de un n�mero diferente de corredores.
+-Es obligatorio el uso de vectores de estructuras.
+-Es obligatorio el uso de ficheros.  <------------HE PUESTO ASTERISCOS (*) PARA QUE SE VEA D�NDE LOS HE USADO
+*/
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define OK 0//Defino los valores a devolver por cada una de las funciones
+#define ERROR -1//Uso OK y ERROR en lugar de 0 � 1 pues es mucho m�s visual
+#define NUM_CORREDORES 10//Defino el n�mero el n�mero de corredores
+
+
+
+typedef enum//Defino el tipo boolean porque necesito variables y funciones
+ {
+        FALSE = 0,//que devuelvan un valor que toman solo 2 opciones (0 y 1 normalmente en C)
+        TRUE = 1//pero en todos los c�digos y lenguajes est� la opci�n de un tipo bool
+} bool;//que devuelve true y false
+
+
+typedef struct//Estructura para almacenar los tiempos de los corredores
+ {
+	int horas;
+	int minutos;
+	int segundos;
+	int total;//segundos totales
+} Tiempo;
+
+
+typedef struct//Estructura de un corredor (Estructura anidada)
+{
+	int dorsal;//Dorsal del corredor
+	char nombre[50];//Nombre del corredor
+	Tiempo reloj;//Tiempo registrado
+	bool finish;//Si ha terminado
+} Corredor;
+
+
+typedef struct//Estructura de la marat�n
+{
+bool refresh;//Flag para actualizar la clasificaci�n
+int  finished;//N�mero de corredores que han acabado
+Corredor lista[NUM_CORREDORES];//Vector de corredores
+int clasif[NUM_CORREDORES];//Vector con posiciones de la tabla de corredores
+} Maraton;
+
+
+
+/*declaraci�n de funciones*/
+
+void inicializaMaraton (Maraton *tabla);
+
+int pintaMenu();
+
+int registraCorredor(Maraton *tabla, FILE *);//  ******************
+
+int listaMaraton(Corredor *tabla);
+
+int orderMaraton(Maraton *tabla);//  ********************
+
+int mediaMaraton(Corredor *tabla, int n);
+
+
+
+
+int main ()
+{
+    
+Maraton tablaMaraton;//Objeto principal
+
+int leido=-1; //Variable para el men�
+FILE *pcorref;//*********
+char corredoresFile[50], clasificacionFile[50];//Ficheros para guardar los corredores y la clasificaci�n   *****************
+
+printf("Diga el nombre del fichero para guardar los corredores\n");
+gets(corredoresFile);//Se recoge el nombre del fichero        ****************
+
+pcorref = fopen(corredoresFile,"a+");//******
+
+
+
+inicializaMaraton(&tablaMaraton);//Llamo a la funci�n que inicializa los valores
+
+	while (leido!=5)//Mientras no seleccione el 5(salir)
+	{
+ 		leido=pintaMenu();//Sale el men�.
+			switch(leido)//Analizo la opci�n
+		{
+           case ERROR://Error en la inseci�n de datos
+           printf ("Ha habido un problema.\n");
+           system ("pause");
+           break;   
+			case 1://Si se marca 1: se registra un corredor
+            registraCorredor(&tablaMaraton, pcorref);
+				break;
+			case 2://Si se marca 2: se lista la marat�n
+            listaMaraton(tablaMaraton.lista);
+				break;
+			case 3://Si se marca 3: se muestra la clasificaci�n
+            orderMaraton(&tablaMaraton); 
+				break;	
+			case 4://Si se marca 4: se saca la media
+            mediaMaraton(tablaMaraton.lista,tablaMaraton.finished);
+				break;
+			default://Cualquier otra opci�n: no vale
+				break;
+		}
+	}
+	
+	    fclose(pcorref);//*****
+		return OK;//Todo ha ido OK(no se devuelve valor)
+		
+}
+
+
+
+
+void inicializaMaraton (Maraton *tabla)//Funci�n que inicializa la estructura de la marat�n
+{
+	int i;	
+	tabla->refresh=FALSE;//No hay inserciones->no es necesario ordenaci�n si preguntan la clasificaci�n                        
+    tabla->finished=0;//Nadie ha acabado->contador de corredores finalizados = 0
+	                            
+	for (i=0;i<NUM_CORREDORES;i++)//Se recorre la lista de corredores
+	{
+		tabla->lista[i].dorsal=i+1;//Se sabe el dorsal
+		tabla->lista[i].finish=FALSE;//No ha terminado
+		tabla->lista[i].reloj.horas=-1;//Tiempo
+		tabla->lista[i].reloj.minutos=-1;
+		tabla->lista[i].reloj.segundos=-1;
+		tabla->lista[i].reloj.total=-1;
+		tabla->clasif[i]=0;//Se rellena la lista que llevar� el orden
+	}
+}
+
+
+
+
+int pintaMenu()//Funci�n que muestra el men� y captura la opci�n del usuario
+{
+	int option=0,cde;
+    system("cls");//Para limpiar la pantalla 
+
+	printf("---------------------------------------\n");
+	printf("Programa de corredores:\n");
+	printf("\t1. Registrar tiempo de un corredor.\n");
+	printf("\t2. Lista de resultados.\n");
+	printf("\t3. Clasificacion de la maraton.\n");
+	printf("\t4. Tiempo medio.\n");
+	printf("\t5. Salir.\n");
+	printf("---------------------------------------\n");
+	printf("\nIndique su opcion: ");
+
+	cde=scanf("%d", &option);//Se saca el cursor para que el usuario pueda meter una opci�n
+	
+
+	if (cde==0)//Control de errores
+		return ERROR;
+	else
+		return option;
+		
+	return OK;     
+}
+
+
+
+
+int registraCorredor(Maraton *tabla, FILE *pcorref)//Funci�n que registra un corredor
+{
+	int dorsal,horas,minutos,segundos;
+	char nombre[50];
+	bool correct=FALSE;
+	
+	printf("\nProceso de registro de corredor.\n");
+	printf("Por favor, indique el dorsal del corredor y su tiempo de la siguiente manera:\n");
+	printf("\t\tDorsal Horas Minutos Segundos\n");
+	printf("Por ejemplo:\n");
+	printf("\t\t3 2 25 46\n");
+		
+	scanf("%d %d %d %d",&dorsal,&horas,&minutos,&segundos);
+	
+
+	while(correct==FALSE)//Control de errores: Se mira que 0<dorsal<NUM_CORREDORES; y que los tiempos no tengan errores
+	{
+    
+    if((dorsal<=NUM_CORREDORES) && (dorsal>0) && (horas>=0) && (minutos>=0) &&(minutos<=59) && (segundos>=0) && (segundos<=59))
+		correct=TRUE;//Se marca true
+        
+     else//Se sigue capturando
+		{
+                 printf("\tHay algun error en los datos. Pruebe de nuevo. (Recuerde: dorsal horas minutos segundos)\n");
+                 scanf("%d %d %d %d",&dorsal,&horas,&minutos,&segundos);
+        }
+	}
+
+//Se agrega el corredor
+
+	tabla->refresh=TRUE;//Hay que actualizar la clasificaci�n si no estaba ya registrado
+	if(tabla->lista[dorsal-1].finish==FALSE)
+	tabla->finished++;//Incrementamos finalizados
+	
+	    getchar( );
+		printf("Indique el nombre y apellido del corredor\n");
+        gets(nombre);                                           
+
+	
+//El dorsal siempre estar� 1 por encima de la posici�n del vector
+//Es decir: que en la posici�n 0 del vector, estar� almacenado el dorsal 1 
+
+	tabla->lista[dorsal-1].dorsal=dorsal;
+	tabla->lista[dorsal-1].finish=TRUE;
+	strcpy(tabla->lista[dorsal-1].nombre,nombre);
+	tabla->lista[dorsal-1].reloj.horas=horas;
+	tabla->lista[dorsal-1].reloj.minutos=minutos;
+	tabla->lista[dorsal-1].reloj.segundos=segundos;
+	tabla->lista[dorsal-1].reloj.total=horas*60*60+minutos*60+segundos;//Tiempo en segundos
+	fprintf(pcorref,"%d  %d %d %d %d %s", dorsal, 1, horas, minutos, segundos, nombre);
+  	return OK;     
+}
+
+
+
+
+int listaMaraton(Corredor *tabla)//Funci�n que muestra el estado de la marat�n
+{
+    int i;
+    printf("Listado de corredor:\n");
+	printf("\tDorsal\tTiempo (hh:mm:ss)\n");
+	
+    for (i=0;i<NUM_CORREDORES;i++)//Se recorre la lista mostrando los datos
+    {
+        if(tabla[i].finish==TRUE)//Si ha finalizado se muestra el tiempo
+        printf("\t%d\t%d:%d:%d\n",tabla[i].dorsal,tabla[i].reloj.horas,tabla[i].reloj.minutos,tabla[i].reloj.segundos);
+        else//Si no ha finalizado se muestra el mensaje
+        printf("\t%d\tNo finalizado.\n",tabla[i].dorsal);
+     }
+        
+       system("pause");
+      return OK;    
+}
+
+
+
+
+int orderMaraton(Maraton *tabla)//Funci�n que ordena el vector de corredores
+{
+    int i, j, tam;
+    FILE  *pclasif;//  *********************
+    char clasificacionFile[50];
+    
+    fflush(stdin);      
+	printf("Diga el nombre del fichero para guardar la clasificacion\n");//Se recoge el nombre del fichero    ***********
+    gets(clasificacionFile);//  *****************
+   
+    pclasif = fopen(clasificacionFile,"w+");//  ********************
+    int corrIzq, corrDer;
+    int posicionCorredor;
+    tam=tabla->finished;//Se saca el tama�o de los que han acabado
+    
+    if(tabla->refresh==TRUE)//Si se ha hecho alguna inserci�n
+    {//Se recrea el vector con las posiciones de los corredores seg�n el ORDEN del DORSAL
+    i=0;
+    for (j=0;j<NUM_CORREDORES;j++)
+    {
+        if(tabla->lista[j].finish==TRUE && i<tam)
+        {
+            tabla->clasif[i]=j;
+            i++;
+        }    
+     }
+     for (i=1; i<tam; i++)//Ahora se recorre el vector ordenando
+     {
+         for (j=0 ; j<tam - 1; j++)
+         {
+             corrIzq=tabla->clasif[j];
+             corrDer=tabla->clasif[j+1];
+             if (tabla->lista[corrIzq].reloj.total > tabla->lista[corrDer].reloj.total)//Si la posici�n de al lado es menor, se intercambian posiciones
+             {
+                   tabla->clasif[j] = corrDer;//Se mete la menor a la izquierda
+                   tabla->clasif[j+1] = corrIzq;//Se mete a la derecha el valor que hab�a en la inzquiera
+            }
+          }  
+     }              
+   }
+
+printf("Clasificacion de maraton\n\tPuesto\tDorsal\tTiempo\tNombre\n");
+
+for(i=0;i<tam;i++)//Ahora se recorre el vector de manera habitual
+    {
+       posicionCorredor=tabla->clasif[i];           
+       fprintf(pclasif,"%d [%d] %d:%d:%d %s",i+1,tabla->lista[posicionCorredor].dorsal,tabla->lista[posicionCorredor].reloj.horas,
+       tabla->lista[posicionCorredor].reloj.minutos,tabla->lista[posicionCorredor].reloj.segundos, tabla->lista[posicionCorredor].nombre); 
+	   printf("\t%d \t[%d] \t%d:%d:%d \t%s\n",i+1,tabla->lista[posicionCorredor].dorsal, tabla->lista[posicionCorredor].reloj.horas,
+       tabla->lista[posicionCorredor].reloj.minutos,tabla->lista[posicionCorredor].reloj.segundos, tabla->lista[posicionCorredor].nombre);
+    }
+    
+    fclose(pclasif);//  *********************
+
+system("pause");
+}
+
+
+
+
+int mediaMaraton(Corredor *tabla, int n)//Funci�n que calcula la media de los finalizados
+{
+	float media=0.0;
+	int i;
+	int hr,sec,min;
+    if (n>0)//Si hay alg�n corredor que ha finalizado
+    {
+                 for(i=0;i<NUM_CORREDORES;i++)//Se suman todos los segundos totales de los corredores
+                 {
+                              if(tabla[i].finish==TRUE)
+                              media+=tabla[i].reloj.total;
+                 }
+                 media=media/n;//Se hace la media
+                 sec=media;//Se pasan los segundos a horas, minutos y segundos
+                 hr = sec / (60*60);//Se sacan las horas que no caben, que est� almacenado en un entero.
+                 sec %= 60*60;//Resto que ha quedado
+                 min = sec / 60;//Minutos completos que se pueden sacar
+                 sec %= 60;//Resto, que son los segundos
+    }
+    else//Si no hay ning�n finalizado
+    {
+             media=0.0;
+             hr=0;
+             min=0;
+             sec=0;
+    }
+    
+	printf("\nMedia de la maraton: %d:%d:%d (%d finalizados de %d participantes)\n", hr,min,sec , n, NUM_CORREDORES);
+	
+ system("pause");
+	return OK;
+}
